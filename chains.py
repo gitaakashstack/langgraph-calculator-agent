@@ -1,18 +1,26 @@
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_google_genai import ChatGoogleGenerativeAI
+import re
+
+generation_prompt = ChatPromptTemplate.from_messages(
+    [
+        SystemMessage("You are a grant application writer. Write a clear, persuasive answer to a given question."),
+        MessagesPlaceholder(variable_name="messages"),
+    ]
+)
 
 reflection_prompt = ChatPromptTemplate.from_messages(
     [
-        (
-            "system",
-            "You are a viral twitter influencer grading a tweet. Generate critique and recommendations for the user's tweet."
-            "Always provide detailed recommendations, including requests for length, virality, style, etc.",
+        SystemMessage(
+            "You are a critical reviewer. Evaluate the following grant application response on:\n"
+               "- Relevance to the question\n"
+               "- Clarity and structure\n"
+               "- Persuasiveness and tone\n"
+               "Give a score out of 10 and suggestions for improvement."
         ),
         MessagesPlaceholder(variable_name="messages"),
-        (
-            "user",
-            "Please critique the assistant's answer above."
-        ),
+        HumanMessage("Please critique the assistant's answer above.")
     ]
 )
 
@@ -22,18 +30,10 @@ reflection_prompt = ChatPromptTemplate.from_messages(
 # What happens: an earlier node produced an AIMessage (e.g. the actor's answer), that got appended to state["messages"], and then the reflect node calls the LLM
 # again on the same messages list without adding anything new — so the list going into llm.invoke() ends with ..., AIMessage(...). Gemini refuses that outright.
 
-generation_prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "You are a twitter techie influencer assistant tasked with writing excellent twitter posts."
-            " Generate the best twitter post possible for the user's request."
-            " If the user provides critique, respond with a revised version of your previous attempts.",
-        ),
-        MessagesPlaceholder(variable_name="messages"),
-    ]
-)
-
 llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
 generation_chain = generation_prompt | llm
 reflection_chain = reflection_prompt | llm
+
+def parse_score(text):
+    match = re.search(r"score\\s*[:\\-]?\\s*(\\d+(?:\\.\\d+)?)", text, re.I)
+    return float(match.group(1)) if match else 0.0
