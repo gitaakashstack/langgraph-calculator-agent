@@ -1,12 +1,9 @@
 from typing import Dict, Any
 
-from dotenv import load_dotenv
-from langchain_core.messages import SystemMessage, ToolMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-from langgraph.graph import MessagesState
+from langchain_core.messages import ToolMessage, AIMessage, HumanMessage
 
-from chains import llm_chain, tools_by_name
+from chains.llm_chain import llm_chain, tools_by_name
+from chains.verifier import VerificationResponse, verifier_chain
 from schemas import GraphState
 
 
@@ -15,7 +12,7 @@ def agent_node(state:GraphState) -> Dict[str, Any]:
 
     print("--- Agent Node ---")
     response = llm_chain.invoke({"message_history":state["messages"]})
-    return { "messages": [response], "llm_calls": state.get("llm_calls",0) + 1}
+    return { "messages": [response]}
 
 def tool_node(state:GraphState) -> Dict[str, Any]:
     """Performs the tool call"""
@@ -31,5 +28,50 @@ def tool_node(state:GraphState) -> Dict[str, Any]:
         
     return { "messages": result }
 
+def verify_node(state:GraphState) -> Dict[str, Any]:
+    """ Verifies the previous response """
+
+    print(f"--- Verify Node: Attempt {state.get("retries",0)} ---")
+
+    steps = format_steps(state["messages"])
+
+    # Intentionally modifying steps so that verification llm returns incorrect. Set step such that it forgets a step
+    if state.get("retries",0) == 0:
+        steps = "Called multiply with {'a': 3, 'b': 12.5}\n  → returned 37.5"
+
+    response: VerificationResponse = verifier_chain.invoke({
+        "question": state["question"],
+        "steps": steps,
+        "answer": state["messages"][-1].content,
+    })
+
+    if response.binary_score:
+        return {
+            "retries": state.get("retries", 0) + 1,
+            "verdict": response.binary_score,
+        }
+
+    feedback = HumanMessage(
+        content=f"""
+            Your answer was checked and is wrong: {response.reason} 
+            Please fix it using the tools.
+        """
+    )
+    return {
+        "messages": [feedback],
+        "retries": state.get("retries",0) + 1,
+        "verdict": response.binary_score,
+    }
+
+
+def format_steps(messages) -> str:
+    lines = []
+    for m in messages:
+        if isinstance(m, AIMessage):
+            for tc in m.tool_calls:
+                lines.append(f"- Called {tc['name']} with {tc['args']}")
+        elif isinstance(m, ToolMessage):
+            lines.append(f"  → returned {m.content}")
+    return "\n".join(lines) or "(no tools were called)"
 
 

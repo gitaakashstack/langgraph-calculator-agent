@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI
 load_dotenv()
 
 @tool
-def multiply(a: int, b: int) -> int:
+def multiply(a: float, b: float) -> float:
     """
     Multiplies two numbers
 
@@ -21,7 +21,7 @@ def multiply(a: int, b: int) -> int:
     return a * b
 
 @tool
-def add(a: int, b: int) -> int:
+def add(a: float, b: float) -> float:
     """
     Adds two numbers
 
@@ -34,7 +34,7 @@ def add(a: int, b: int) -> int:
     return a + b
 
 @tool
-def divide(a: int, b: int) -> float:
+def divide(a: float, b: float) -> float:
     """
     Divides two numbers
 
@@ -64,3 +64,4 @@ prompt = ChatPromptTemplate.from_messages(
 llm = ChatOpenAI(model="gpt-6-luna")
 llm_with_tools = llm.bind_tools(tools)
 llm_chain = prompt | llm_with_tools
+
