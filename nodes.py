@@ -13,15 +13,18 @@ from schemas import GraphState
 def agent_node(state:GraphState) -> Dict[str, Any]:
     """LLM decides whether to call a tool or not"""
 
-    response = llm_chain.invoke(state["messages"])
-    return { "message": response, "llm_calls": state.get("llm_calls",0) + 1}
+    print("--- Agent Node ---")
+    response = llm_chain.invoke({"message_history":state["messages"]})
+    return { "messages": [response], "llm_calls": state.get("llm_calls",0) + 1}
 
 def tool_node(state:GraphState) -> Dict[str, Any]:
     """Performs the tool call"""
 
+    print("--- Tool Node ---")
     result = []
-    tool_calls = state["messages"][-1]["tool_calls"]
+    tool_calls = state["messages"][-1].tool_calls
     for tool_call in tool_calls:
+        print(f"--- Performing {tool_call["name"]} ---")
         tool = tools_by_name[tool_call["name"]]
         observation = tool.invoke(tool_call["args"])
         result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))

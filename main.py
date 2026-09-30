@@ -1,39 +1,41 @@
+from typing import Literal
+
 from dotenv import load_dotenv
-from typing import TypedDict, Annotated
 from langchain.messages import HumanMessage
 from langgraph.graph import MessagesState, StateGraph, END
-from langgraph.graph.message import add_messages
+from nodes import agent_node, tool_node
+from schemas import GraphState
 
 load_dotenv()
 
-from chains import generation_chain, reflection_chain, parse_score
+AGENT = "agent"
+TOOL = "tool"
 
-REFLECT = "reflect"
-GENERATE = "generate"
+def should_continue(state) -> Literal[TOOL, END]:
+    """
+        Decide if we should continue the loop or stop based upon whether the LLM made a tool call
+    """
 
-def generation_node(state: MessagesState):
-    return {"messages": [generation_chain.invoke({"messages": state["messages"]})]}
-
-def reflection_node(state: MessagesState):
-    res = reflection_chain.invoke({"messages": state["messages"]})
-    return {"messages": [HumanMessage(content=res.content)]}
-
-def should_continue(state):
-    reflections = [msg.content for msg in state if isinstance(msg, HumanMessage)]
-    last = reflections[-1] if reflections else ""
-    score = parse_score(last)
-    if score >= 8:
+    print("--- Should Continue to TOOL or END ? ---")
+    last_message = state["messages"][-1]
+    if last_message.tool_calls:
+        print("--- Continue to TOOL ---")
+        return TOOL
+    else:
+        print("--- Continue to END ---")
         return END
-    return REFLECT
 
-graph = StateGraph(MessagesState)
-graph.add_node(GENERATE, generation_node)
-graph.add_node(REFLECT, reflection_node)
-graph.set_entry_point(GENERATE)
-graph.add_edge(REFLECT, GENERATE)
-graph.add_conditional_edges(GENERATE, should_continue, path_map={
+graph = StateGraph(GraphState)
+graph.add_node(AGENT, agent_node)
+graph.add_node(TOOL, tool_node)
+
+graph.set_entry_point(AGENT)
+
+graph.add_edge(TOOL, AGENT)
+
+graph.add_conditional_edges(AGENT, should_continue, path_map={
     END: END,
-    REFLECT: REFLECT,
+    TOOL: TOOL,
 })
 
 
@@ -42,14 +44,13 @@ app.get_graph().draw_mermaid_png(output_file_path='flow.png')
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print('Hello React LangGraph with Reflection')
+    print('Hello Calculator Agent')
+    user_message = HumanMessage(content="Add 3 and 4, then multiply the result with 10, then add 5 to result.")
     res = app.invoke({
-        "messages": [
-            HumanMessage(
-                content="How will your project positively impact underserved communities?"
-            )
-        ]
+        "messages": [user_message]
     })
-    print(res)
+
+    for m in res["messages"]:
+        m.pretty_print()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
