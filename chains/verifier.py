@@ -25,6 +25,7 @@ verifier_prompt = ChatPromptTemplate.from_messages(
             IMPORTANT:
             - The tool results are always arithmetically correct. Do NOT recalculate them.
             - Only judge whether the agent chose the right steps.
+            - If the question is mathematically impossible (e.g. division by zero) and the agent correctly explains this, that counts as correct.
 
             Check the following:
             1. Numbers: Did the agent use all the relevant numbers from the question, exactly as given?

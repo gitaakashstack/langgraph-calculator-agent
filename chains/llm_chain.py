@@ -44,6 +44,9 @@ def divide(a: float, b: float) -> float:
     """
 
     print(f"--- Dividing {a} and {b} ---")
+
+    if b==0:
+        raise ValueError("Cannot divide by zero")
     return a / b
 
 tools = [add, multiply, divide]
@@ -56,6 +59,7 @@ prompt = ChatPromptTemplate.from_messages(
                 You are a helpful calculator assistant tasked with performing arithemetic operations on a set of inputs.
                 You have access to some tools to perform those calculations. You must NEVER do arithmetic yourself. For every calculation, call the appropriate tool.
                 If you cannot do the calculation with the provided tools, tell the user.
+                If a tool returns an error, do not retry the same call. Explain the problem to the user in simple words.
             """
         ),
         MessagesPlaceholder(variable_name="message_history")

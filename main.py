@@ -69,8 +69,16 @@ app.get_graph().draw_mermaid_png(output_file_path='flow.png')
 if __name__ == '__main__':
     print('Hello Calculator Agent')
 
-    question = "I buy 3 pizzas at 12.50 € each and split the bill between 4 people. How much does each person pay?"
-    user_message = HumanMessage(content=question)
+    # error test
+    question1 = "Add 2 and 5, then divide the result by 0"
+
+    # testing verification node failure (intentional failure in verification node)
+    question2 = "I buy 3 pizzas at 12.50 € each and split the bill between 4 people. How much does each person pay?"
+
+    # basic test, all success test
+    question3 = "Add 3 and 5, multiply the result by 6, then divide the result by 2"
+
+    user_message = HumanMessage(content=question1)
     res = app.invoke({
         "messages": [user_message],
         "question": question,
