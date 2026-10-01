@@ -69,7 +69,7 @@ app.get_graph().draw_mermaid_png(output_file_path='flow.png')
 if __name__ == '__main__':
     print('Hello Calculator Agent')
 
-    # error test
+    # division by error test
     question1 = "Add 2 and 5, then divide the result by 0"
 
     # testing verification node failure (intentional failure in verification node)
@@ -78,10 +78,17 @@ if __name__ == '__main__':
     # basic test, all success test
     question3 = "Add 3 and 5, multiply the result by 6, then divide the result by 2"
 
-    user_message = HumanMessage(content=question1)
+    # gives first result false, movies to verifier and then corrects itself
+    question4 = "Add 1 and 2, then perform the factorial of result"
+
+    # breaks down the percentage into available tools as percentage tool is not available. Also happens with power or factorial
+    question5 = "A shirt costs 40 € and is 25% off. What's the final price"
+
+
+    user_message = HumanMessage(content=question4)
     res = app.invoke({
         "messages": [user_message],
-        "question": question,
+        "question": question4,
     })
 
     for m in res["messages"]:

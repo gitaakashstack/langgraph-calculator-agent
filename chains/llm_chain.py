@@ -46,7 +46,7 @@ def divide(a: float, b: float) -> float:
     print(f"--- Dividing {a} and {b} ---")
 
     if b==0:
-        raise ValueError("Cannot divide by zero")
+        raise ZeroDivisionError("Cannot divide by zero")
     return a / b
 
 tools = [add, multiply, divide]

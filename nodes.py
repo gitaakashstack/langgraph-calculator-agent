@@ -1,8 +1,9 @@
 from typing import Dict, Any
 
 from langchain_core.messages import ToolMessage, AIMessage, HumanMessage
+from langgraph.prebuilt import ToolNode
 
-from chains.llm_chain import llm_chain, tools_by_name
+from chains.llm_chain import llm_chain, tools_by_name, tools
 from chains.verifier import VerificationResponse, verifier_chain
 from schemas import GraphState
 
@@ -14,27 +15,15 @@ def agent_node(state:GraphState) -> Dict[str, Any]:
     response = llm_chain.invoke({"message_history":state["messages"]})
     return { "messages": [response]}
 
-def tool_node(state:GraphState) -> Dict[str, Any]:
-    """Performs the tool call"""
+def tool_error_handler(error: Exception) -> str:
+    if isinstance(error, ValueError):
+        return f"Error: {error} Explain this to user instead of calling the tool again"
 
-    print("--- Tool Node ---")
-    result = []
-    tool_calls = state["messages"][-1].tool_calls
-    for tool_call in tool_calls:
-        print(f"--- Performing {tool_call["name"]} ---")
+    return f"Error: {error}"
 
-        tool = tools_by_name[tool_call["name"]]
-        try:
-            observation = tool.invoke(tool_call["args"])
-            result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
-        except ValueError as e:
-            result.append(ToolMessage(
-                content=f"Error: {e} Explain this to user instead of calling the tool again",
-                tool_call_id=tool_call["id"],
-                status="error",
-            ))
-        
-    return { "messages": result }
+tool_node = ToolNode(
+    tools, handle_tool_errors=tool_error_handler
+)
 
 def verify_node(state:GraphState) -> Dict[str, Any]:
     """ Verifies the previous response """
@@ -42,10 +31,6 @@ def verify_node(state:GraphState) -> Dict[str, Any]:
     print(f"--- Verify Node: Attempt {state.get("retries",0)} ---")
 
     steps = format_steps(state["messages"])
-
-    # Intentionally modifying steps so that verification llm returns incorrect. Set step such that it forgets a step. Comment out the below statement if using another prompt
-    if state.get("retries",0) == 0:
-        steps = "Called multiply with {'a': 3, 'b': 12.5}\n  → returned 37.5"
 
     response: VerificationResponse = verifier_chain.invoke({
         "question": state["question"],
